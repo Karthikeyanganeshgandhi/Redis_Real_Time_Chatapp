@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room - {{ room_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #e5ddd5;
+            flex-direction: column;
+        }
+        .chat-container {
+            width: 420px;
+            height: 650px;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #075e54;
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chat-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+        .chat-header h3 {
+            font-size: 16px;
+            margin: 0;
+        }
+        #chatbox {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: url('https://www.transparenttextures.com/patterns/cubes.png');
+            display: flex;
+            flex-direction: column;
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+        .message-container {
+            display: flex;
+            margin: 5px 0;
+            align-items: center;
+            max-width: 80%;
+        }
+        .message.sent {
+            justify-content: flex-end;
+            align-self: flex-end;
+        }
+        .message.received {
+            justify-content: flex-start;
+            align-self: flex-start;
+        }
+        .message p {
+            padding: 10px 15px;
+            border-radius: 15px;
+            word-wrap: break-word;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .sent p {
+            background-color: #dcf8c6;
+            color: black;
+            text-align: right;
+            border-radius: 15px 15px 0 15px;
+        }
+        .received p {
+            background-color: #ffffff;
+            color: black;
+            text-align: left;
+            border-radius: 15px 15px 15px 0;
+        }
+        .chat-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #ffffff;
+            border-top: 1px solid #ccc;
+        }
+        .chat-input button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #128c7e;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .chat-input button:hover {
+            transform: scale(1.1);
+        }
+        .chat-input button i {
+            color: white;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 25px;
+            border: 1px solid #ccc;
+            outline: none;
+            background: #f0f0f0;
+            transition: all 0.2s ease-in-out;
+        }
+        .chat-input input:focus {
+            background: white;
+            border-color: #128c7e;
+        }
+        .typing-indicator {
+            display: none;
+            color: green;
+            font-style: italic;
+            padding-left: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes typing {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+        .typing-indicator::after {
+            content: '';
+            animation: typing 1s infinite;
+        }
+
+        .parent {
+            width: 40px;
+            height: 40px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .child {
+            width: 40px;
+            height: 40px;
+            overflow: hidden;
+            position: relative;
+            border-radius: 50%;
+            cursor: pointer; /* Makes it look clickable */
+            border: 2px solid #ddd; /* Optional: adds a border */
+        }
+
+        .child img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%; /* Ensures the image itself is circular */
+        }
+
+        .file-input {
+            display: none; /* Hide the file input */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="parent" onclick="document.getElementById('fileInput').click();">
+        <div class="child">
+            <img id="profileImage" src="your-image.jpg" alt="Circular Image">
+
+        </div>
+        
+    </div>
+    <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="changeProfilePhoto(event)">
+            <h3>{{ request.user.first_name }}</h3>
+            <a href="{% url 'account' %}" style="margin-left: 250px;color: white;font-size: 20px;"><i class="fa-solid fa-user"></i></a>
+        </div>
+        <div id="chatbox">
+            {% for message in messages %}
+                <div class="message-container {% if message.user == request.user %}sent{% else %}received{% endif %}" id="message-{{ message.id }}">
+                    <p><b>{{ message.user.first_name|default:"Guest" }}:</b> {{ message.content }}</p>
+                    {% if message.user == request.user %}
+                        <button class="delete-btn" onclick="deleteMessage({{ message.id }})">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <div class="typing-indicator" id="typing-indicator">Typing</div>
+        </div>
+        <div class="chat-input">
+            <button><i class="fa-solid fa-paperclip"></i></button>
+
+            
+            <input type="text" id="message" placeholder="Type a message">
+            <button onclick="sendMessage()">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const roomName = "{{ room_name }}";
+const username = "{{ request.user.first_name|default:'Guest' }}";
+let socket;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 10;
+const reconnectBaseDelay = 1000;
+let typingTimeout;
+
+function initWebSocket() {
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        console.warn("⚠️ WebSocket is already open or connecting.");
+        return;
+    }
+
+    console.log("🔄 Connecting WebSocket...");
+    let protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    socket = new WebSocket(protocol + window.location.host + "/ws/chat/" + roomName + "/");
+
+    socket.onopen = function () {
+        console.log("✅ WebSocket connected!");
+        reconnectAttempts = 0;
+    };
+
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        if (data.type === "typing") {
+            showTypingIndicator(data.username);
+        } else if (data.type === "stop_typing") {
+            hideTypingIndicator();
+        } else if (data.type === "delete") {
+            removeMessageFromChatbox(data.message_id);
+        } else {
+            addMessageToChatbox(data.username, data.message, data.message_id);
+        }
+    };
+
+    socket.onerror = function (error) {
+        console.error("❌ WebSocket Error:", error);
+    };
+
+    socket.onclose = function (event) {
+        console.warn(`⚠️ WebSocket closed! Code: ${event.code}, Reason: ${event.reason}`);
+
+        if (event.code === 1000) {
+            console.log("✅ Normal closure, no need to reconnect.");
+            return;
+        }
+
+        if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            let reconnectTime = Math.min(5000, reconnectBaseDelay * reconnectAttempts);
+            console.log(`🔄 Reconnecting in ${reconnectTime / 1000} seconds...`);
+            setTimeout(initWebSocket, reconnectTime);
+        } else {
+            console.error("❌ Max reconnect attempts reached. Stopping further attempts.");
+        }
+    };
+}
+
+function changeProfilePhoto(event) {
+            const file = event.target.files[0]; // Get the selected file
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('profileImage').src = e.target.result; // Set new image
+                };
+                reader.readAsDataURL(file); // Convert file to base64 URL
+            }
+        }
+
+function sendMessage() {
+    const messageInput = document.getElementById("message");
+    const message = messageInput.value.trim();
+
+    if (message !== "" && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ "message": message }));
+        messageInput.value = "";
+        stopTyping();
+    } else if (socket.readyState !== WebSocket.OPEN) {
+        console.error("❌ Cannot send message. WebSocket is not open.");
+    }
+}
+
+function deleteMessage(messageId) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error("❌ WebSocket is not open. Trying to reconnect...");
+        initWebSocket();
+        return;
+    }
+    socket.send(JSON.stringify({ "type": "delete", "message_id": messageId }));
+}
+
+function addMessageToChatbox(sender, message, messageId) {
+    const chatbox = document.getElementById("chatbox");
+    const typingIndicator = document.getElementById("typing-indicator");
+    const messageContainer = document.createElement("div");
+    const messageElement = document.createElement("p");
+
+    messageContainer.classList.add("message-container");
+    messageContainer.id = `message-${messageId}`;
+    messageElement.innerHTML = `<b>${escapeHTML(sender)}:</b> ${escapeHTML(message)}`;
+
+    if (sender === username) {
+        messageContainer.classList.add("message", "sent");
+        const deleteButton = document.createElement("button");
+        deleteButton.classList.add("delete-btn");
+        deleteButton.innerHTML = `<i class="fa-solid fa-trash"></i>`;
+        deleteButton.onclick = () => deleteMessage(messageId);
+        messageContainer.appendChild(deleteButton);
+    } else {
+        messageContainer.classList.add("message", "received");
+    }
+
+    messageContainer.appendChild(messageElement);
+    chatbox.insertBefore(messageContainer, typingIndicator);
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+function removeMessageFromChatbox(messageId) {
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+        messageElement.remove();
+    }
+}
+
+function escapeHTML(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showTypingIndicator(user) {
+    const typingIndicator = document.getElementById("typing-indicator");
+    typingIndicator.textContent = `${user} is typing...`;
+    typingIndicator.style.display = "block";
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingIndicator = document.getElementById("typing-indicator");
+    typingIndicator.textContent = "";
+    typingIndicator.style.display = "none";
+}
+
+function startTyping() {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ "type": "typing" }));
+    }
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(stopTyping, 3000);
+}
+
+function stopTyping() {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ "type": "stop_typing" }));
+    }
+}
+
+document.getElementById("message").addEventListener("input", startTyping);
+
+document.getElementById("message").addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+    }
+});
+
+setInterval(() => {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ "type": "ping" }));
+    }
+}, 5000);
+
+initWebSocket();
+
+    </script>
+    
+</body>
+</html>
